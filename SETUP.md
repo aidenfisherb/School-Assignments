@@ -3,20 +3,21 @@
 Five steps: create the repo, get a Canvas token, pick an ntfy topic,
 add secrets, enable Pages. About 10 minutes total.
 
-## 1. Create the GitHub repo
+## 1. Push to a public GitHub repo
 
-- Create a new **public** repository on GitHub (public is required for
+- The repo hosting this project needs to be **public** (required for
   free GitHub Pages hosting; nothing sensitive is ever in the repo —
-  see "What's public" below).
-- Push this project's files into it:
+  see "What's public" below), and this project's files need to live at
+  the **repo root** — GitHub Actions only discovers workflows under
+  `.github/workflows/` at the top level, not inside a subdirectory.
+- If you're starting fresh:
 
   ```
-  cd canvas-digest
   git init
   git add .
   git commit -m "Initial commit"
   git branch -M main
-  git remote add origin https://github.com/<you>/canvas-digest.git
+  git remote add origin https://github.com/<you>/<repo-name>.git
   git push -u origin main
   ```
 

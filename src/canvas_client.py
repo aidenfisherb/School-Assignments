@@ -99,9 +99,12 @@ class CanvasClient:
 
             try:
                 assignments = self.get_course_assignments(course_id)
-            except CanvasError:
-                # One misbehaving course (e.g. concluded but still "active",
-                # or a permissions quirk) shouldn't take down the whole run.
+            except (CanvasError, requests.RequestException):
+                # One misbehaving course (e.g. concluded but still "active"
+                # and returning 403, or a network blip) shouldn't take down
+                # the whole run. Only 401/404 get wrapped as CanvasError by
+                # _get_paginated; anything else (403, 5xx, timeouts) surfaces
+                # as a raw requests exception, so both are caught here.
                 continue
 
             for a in assignments:

@@ -43,6 +43,21 @@ def _parse_due_at(raw: str | None) -> datetime | None:
     return dt.astimezone(LOCAL_TZ)
 
 
+def _fmt_time(dt: datetime) -> str:
+    """12-hour clock without a leading zero, e.g. '9:05 AM'.
+
+    strftime's '%-I' does this on Linux/macOS but raises ValueError on
+    Windows (not a glibc extension there), so the hour is computed by hand.
+    """
+    hour = dt.hour % 12 or 12
+    return f"{hour}:{dt.strftime('%M %p')}"
+
+
+def _fmt_date_short(dt: datetime) -> str:
+    """Weekday + numeric month/day without leading zeros, e.g. 'Tue 8/5'."""
+    return f"{dt.strftime('%a')} {dt.month}/{dt.day}"
+
+
 def _infer_kind(assignment: dict) -> str:
     submission_types = assignment.get("submission_types") or []
     if "online_quiz" in submission_types or assignment.get("is_quiz_assignment"):
@@ -135,13 +150,13 @@ def format_notification_text(digest: Digest) -> tuple[str, str]:
     if digest.due_today:
         parts.append(f"Due today ({len(digest.due_today)}):")
         parts.extend(
-            f"  • {i.course_name}: {i.title} ({i.due_at.strftime('%-I:%M %p')})"
+            f"  • {i.course_name}: {i.title} ({_fmt_time(i.due_at)})"
             for i in digest.due_today
         )
     if digest.coming_up:
         parts.append(f"Coming up ({len(digest.coming_up)}):")
         parts.extend(
-            f"  • {i.course_name}: {i.title} ({i.due_at.strftime('%a %-m/%-d')})"
+            f"  • {i.course_name}: {i.title} ({_fmt_date_short(i.due_at)})"
             for i in digest.coming_up
         )
 

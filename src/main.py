@@ -23,8 +23,18 @@ from .notify import send_ntfy
 
 
 def _env(name: str, default: str | None = None) -> str | None:
-    val = os.environ.get(name, default)
-    return val.strip() if isinstance(val, str) else val
+    """Read an env var, falling back to `default` when unset OR blank.
+
+    GitHub Actions substitutes an unset repo variable (`vars.X`) as an
+    empty string rather than omitting it, so "set but blank" has to be
+    treated the same as "unset" here or optional config like
+    LOOKAHEAD_DAYS crashes int() on a fresh repo.
+    """
+    val = os.environ.get(name)
+    if val is None:
+        return default
+    val = val.strip()
+    return val if val else default
 
 
 def _parse_exclude_ids(raw: str | None) -> set[int]:

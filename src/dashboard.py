@@ -8,13 +8,20 @@ from __future__ import annotations
 
 from html import escape
 
-from .digest import Digest, DigestItem
+from datetime import datetime
+
+from .digest import Digest, DigestItem, _fmt_date_short, _fmt_time
 
 _KIND_LABEL = {"quiz": "Quiz/Test", "discussion": "Discussion", "assignment": "Assignment"}
 
 
+def _fmt_full(dt: datetime) -> str:
+    """e.g. 'Tuesday, August 5 — 7:00 AM CDT', without relying on '%-d'."""
+    return f"{dt.strftime('%A, %B')} {dt.day} — {_fmt_time(dt)} {dt.strftime('%Z')}"
+
+
 def _item_row(item: DigestItem, *, show_date: bool) -> str:
-    when = item.due_at.strftime("%a %-m/%-d, %-I:%M %p") if show_date else item.due_at.strftime("%-I:%M %p")
+    when = f"{_fmt_date_short(item.due_at)}, {_fmt_time(item.due_at)}" if show_date else _fmt_time(item.due_at)
     points = f"{item.points_possible:g} pts" if item.points_possible not in (None, 0) else ""
     link_open, link_close = (f'<a href="{escape(item.html_url)}">', "</a>") if item.html_url else ("", "")
     return f"""
@@ -48,7 +55,7 @@ def _section(title: str, items: list[DigestItem], *, empty_text: str, show_date:
 
 
 def render_dashboard(digest: Digest, repo_url: str = "") -> str:
-    generated = digest.generated_at.strftime("%A, %B %-d — %-I:%M %p %Z")
+    generated = _fmt_full(digest.generated_at)
     footer_link = (
         f'<a href="{escape(repo_url)}">source</a>' if repo_url else "built with Canvas API + GitHub Actions"
     )

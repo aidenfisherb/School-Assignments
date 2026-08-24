@@ -5,7 +5,7 @@ Canvas LMS, filters out everything that isn't actually actionable, and
 delivers what's left two ways: a push notification and a small static
 dashboard.
 
-**Live example:** `https://<your-username>.github.io/canvas-digest/` (once deployed — see SETUP.md)
+**Live example:** `https://<your-username>.github.io/<repo-name>/` (once deployed — see SETUP.md)
 
 ## What it does
 
