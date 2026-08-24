@@ -1,0 +1,58 @@
+name: Daily Canvas Digest
+
+on:
+  schedule:
+    # 11:30 UTC = 6:30 AM Central during Daylight Time (CDT, UTC-5).
+    # During Standard Time (CST, UTC-6, roughly Nov-Mar) this fires at
+    # 5:30 AM local instead. GitHub Actions cron doesn't know about DST,
+    # so if you want it locked to 6:30 AM year-round, flip this to
+    # "30 12 * * 1-5" when CST starts and back to "30 11 * * 1-5" when
+    # CDT resumes.
+    - cron: "30 11 * * 1-5" # Mon-Fri only
+  workflow_dispatch: {} # lets you trigger a run manually from the Actions tab to test
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-and-notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Fetch Canvas data, build dashboard, send notification
+        env:
+          CANVAS_DOMAIN: ${{ secrets.CANVAS_DOMAIN }}
+          CANVAS_TOKEN: ${{ secrets.CANVAS_TOKEN }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          EXCLUDE_COURSE_IDS: ${{ vars.EXCLUDE_COURSE_IDS }}
+          LOOKAHEAD_DAYS: ${{ vars.LOOKAHEAD_DAYS }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: python -m src.main
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+  deploy:
+    needs: build-and-notify
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
