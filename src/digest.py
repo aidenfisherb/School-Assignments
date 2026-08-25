@@ -160,10 +160,13 @@ def format_notification_text(digest: Digest) -> tuple[str, str]:
             for i in digest.coming_up
         )
 
+    # ntfy sends this as an HTTP header value, which http.client encodes as
+    # latin-1 — non-ASCII characters (em dashes, emoji) raise UnicodeEncodeError
+    # and crash the push, so this string has to stay plain ASCII.
     title = "Canvas Digest"
     if digest.overdue:
-        title = f"⚠️ {len(digest.overdue)} overdue — Canvas Digest"
+        title = f"{len(digest.overdue)} overdue - Canvas Digest"
     elif digest.due_today:
-        title = f"{len(digest.due_today)} due today — Canvas Digest"
+        title = f"{len(digest.due_today)} due today - Canvas Digest"
 
     return title, "\n".join(parts)

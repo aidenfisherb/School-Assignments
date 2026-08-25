@@ -84,8 +84,16 @@ def main() -> int:
         if not ntfy_topic:
             print("NTFY_TOPIC not set — skipping push notification.", file=sys.stderr)
         else:
-            send_ntfy(ntfy_topic, title, body)
-            print("Push notification sent.")
+            try:
+                send_ntfy(ntfy_topic, title, body)
+                print("Push notification sent.")
+            except Exception as e:
+                # The dashboard above is already written correctly by this
+                # point; a failed push (ntfy.sh outage, network blip, a
+                # future encoding surprise) is a best-effort side channel
+                # and must not take the whole run — and the Pages deploy
+                # that depends on it succeeding — down with it.
+                print(f"Push notification failed (dashboard was still updated): {e}", file=sys.stderr)
 
     return 0
 
