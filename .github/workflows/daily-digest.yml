@@ -10,6 +10,10 @@ on:
     # CDT resumes.
     - cron: "30 11 * * 1-5" # Mon-Fri only
   workflow_dispatch: {} # lets you trigger a run manually from the Actions tab to test
+  push:
+    branches: [dev]
+    paths:
+      - "syllabi/**" # rebuild right away when a syllabus is added/removed via GitHub's UI
 
 permissions:
   contents: read
@@ -33,6 +37,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Compute Pages URL
+        run: echo "PAGES_URL=https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}/" >> "$GITHUB_ENV"
+
       - name: Fetch Canvas data, build dashboard, send notification
         env:
           CANVAS_DOMAIN: ${{ secrets.CANVAS_DOMAIN }}
@@ -41,6 +48,7 @@ jobs:
           EXCLUDE_COURSE_IDS: ${{ vars.EXCLUDE_COURSE_IDS }}
           LOOKAHEAD_DAYS: ${{ vars.LOOKAHEAD_DAYS }}
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          REPO_BRANCH: ${{ github.ref_name }}
         run: python -m src.main
 
       - uses: actions/upload-pages-artifact@v3

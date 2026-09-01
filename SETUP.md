@@ -16,10 +16,13 @@ add secrets, enable Pages. About 10 minutes total.
   git init
   git add .
   git commit -m "Initial commit"
-  git branch -M main
+  git branch -M dev
   git remote add origin https://github.com/<you>/<repo-name>.git
-  git push -u origin main
+  git push -u origin dev
   ```
+  (`dev` here just matches this repo's actual default branch — use
+  whatever your repo's default branch is, `main` is just as fine for a
+  fresh one.)
 
 ## 2. Get a Canvas access token
 
@@ -106,3 +109,26 @@ Nothing to do — courses are auto-discovered from your active Canvas
 enrollments every run. To hide a specific course without unenrolling
 (e.g. an audit), add its Canvas course ID to the `EXCLUDE_COURSE_IDS`
 repo variable (comma-separated for more than one).
+
+## Adding a syllabus
+
+1. On GitHub, use **Add file → Upload files** to upload a `.pdf` or
+   `.docx` syllabus to a path like `syllabi/COSC240/syllabus.pdf` —
+   `COSC240` should match part of that course's Canvas course code or
+   name (case doesn't matter). You can also start from the **Syllabi**
+   page on your dashboard (linked from the navbar), which lists a
+   suggested path per course and links straight to GitHub's upload
+   screen.
+2. Commit directly to your default branch. That push triggers an
+   immediate rebuild (in addition to the daily schedule), so the
+   dashboard picks it up within a minute or two rather than waiting
+   for the next morning.
+3. To remove one, use the **remove** link next to the file on the
+   Syllabi page (or delete it directly on GitHub) — same push trigger
+   applies.
+
+Extraction is a first pass, not a guarantee — accuracy depends
+entirely on how consistently a given syllabus formats its dates.
+Anything the parser gets wrong relative to Canvas shows up with a
+**Conflicting** tag on the dashboard instead of silently overriding
+Canvas, so it's always visible when the two disagree.

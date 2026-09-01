@@ -21,13 +21,39 @@ Every weekday at 6:30 AM Central, a GitHub Actions workflow:
    separate Canvas endpoint this project doesn't touch.
 4. Buckets what's left into **Overdue**, **Due Today**, and **Coming
    Up** (next 7 days by default).
-5. Renders a static dashboard (`docs/index.html`) and deploys it to
-   GitHub Pages.
-6. Sends a push notification via [ntfy.sh](https://ntfy.sh) summarizing
-   the same thing.
+5. Merges in anything extracted from uploaded syllabus files (see
+   below), tagging each item **Canvas** or **Syllabus** so you know
+   where it came from, collapsing exact duplicates, and flagging a
+   **Conflicting** tag when the two sources disagree on a due date
+   instead of silently picking one.
+6. Renders a static dashboard (`docs/index.html`) and a syllabus
+   management page (`docs/syllabuses.html`), linked by a navbar, and
+   deploys both to GitHub Pages.
+7. Sends a short push notification via [ntfy.sh](https://ntfy.sh) — a
+   one-line summary and a link to the dashboard, not a full list.
 
 No server to run, no database, no student-facing announcements or
 noise — just what a student actually needs to see before class.
+
+### Syllabus files
+
+Canvas is sometimes incomplete (a professor forgets to set a due date)
+or just wrong. Upload a syllabus PDF/docx per course to
+`syllabi/<COURSE_KEY>/yourfile.pdf` (via GitHub's own web UI — no git
+needed) and the workflow extracts assignment/due-date pairs from it
+automatically. `COURSE_KEY` just needs to match part of the course's
+Canvas code or name (e.g. `syllabi/COSC240/...` for a course coded
+`COSC240.01`) — matching happens fresh against your live enrollments
+each run, so it survives semester rollover with no changes needed.
+
+Automatic extraction from prose is inherently a heuristic, not a
+guarantee — expect it to occasionally miss something or misread a
+date. That's exactly what the Conflicting tag is for: it surfaces a
+disagreement between Canvas and a syllabus instead of hiding it. The
+**Syllabi** page (reachable from the dashboard's navbar) shows which
+courses have a tracked syllabus, with links to view or remove files
+and to add new ones — all through GitHub's own file UI, so there's no
+custom upload form or backend to maintain.
 
 ## Why it's built this way
 
@@ -50,22 +76,28 @@ noise — just what a student actually needs to see before class.
 
 ```
 src/
-  canvas_client.py   Canvas REST API wrapper (courses, assignments, pagination)
-  digest.py          Filtering + bucketing (overdue / due today / coming up)
-  dashboard.py       Renders the digest into a static HTML page
-  notify.py          Sends the push notification via ntfy.sh
-  main.py            Orchestrates the above; entry point for the workflow
+  canvas_client.py    Canvas REST API wrapper (courses, assignments, pagination)
+  digest.py           Filtering + bucketing (overdue / due today / coming up)
+  syllabus_parser.py  Extracts assignment/due-date pairs from uploaded syllabus files
+  merge.py            Reconciles Canvas items with syllabus items (dedup / conflict tagging)
+  dashboard.py        Renders the digest into static HTML pages (dashboard + syllabi)
+  notify.py           Sends the push notification via ntfy.sh
+  main.py             Orchestrates the above; entry point for the workflow
 tests/
-  test_digest.py     Unit tests against mock assignment data
+  test_digest.py            Unit tests for filtering/bucketing/notification text
+  test_merge.py             Unit tests for the dedup/conflict logic
+  test_syllabus_parser.py   Unit tests for syllabus text/date extraction
+syllabi/
+  <COURSE_KEY>/       One folder per course; drop a .pdf or .docx syllabus in here
 .github/workflows/
-  daily-digest.yml   Cron schedule + GitHub Pages deploy
+  daily-digest.yml   Cron schedule + GitHub Pages deploy; also rebuilds on syllabus changes
 ```
 
 ## Tech
 
-Python 3.12, `requests`, GitHub Actions (schedule + Pages deploy),
-ntfy.sh for push delivery. No frameworks, no external services beyond
-Canvas and ntfy.
+Python 3.12, `requests`, `pypdf`, `python-docx`, `python-dateutil`,
+GitHub Actions (schedule + Pages deploy), ntfy.sh for push delivery. No
+frameworks, no external services beyond Canvas and ntfy.
 
 ## Setup
 

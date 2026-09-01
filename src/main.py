@@ -16,9 +16,10 @@ import os
 import sys
 from pathlib import Path
 
+from . import syllabus_parser
 from .canvas_client import CanvasClient, CanvasError
 from .digest import build_digest, format_notification_text
-from .dashboard import render_dashboard
+from .dashboard import render_dashboard, render_syllabuses_page
 from .notify import send_ntfy
 
 
@@ -53,9 +54,12 @@ def main() -> int:
     token = _env("CANVAS_TOKEN")
     ntfy_topic = _env("NTFY_TOPIC")
     repo_url = _env("REPO_URL", "")
+    repo_branch = _env("REPO_BRANCH", "dev")
+    pages_url = _env("PAGES_URL", "")
     lookahead_days = int(_env("LOOKAHEAD_DAYS", "7"))
     exclude_ids = _parse_exclude_ids(_env("EXCLUDE_COURSE_IDS", ""))
     output_dir = Path(_env("OUTPUT_DIR", "docs"))
+    syllabus_dir = Path(_env("SYLLABUS_DIR", "syllabi"))
     skip_notify = _env("SKIP_NOTIFY", "").lower() in ("1", "true", "yes")
 
     if not domain or not token:
@@ -64,12 +68,23 @@ def main() -> int:
 
     client = CanvasClient(domain=domain, token=token)
     try:
+        courses = client.get_active_courses()
         raw_assignments = client.get_all_assignments(exclude_course_ids=exclude_ids)
     except CanvasError as e:
         print(f"Canvas API error: {e}", file=sys.stderr)
         return 1
 
-    digest = build_digest(raw_assignments, lookahead_days=lookahead_days)
+    manifest = syllabus_parser.discover_syllabus_files(syllabus_dir)
+    syllabus_items = syllabus_parser.parse_all(manifest, courses)
+    print(f"Found {len(syllabus_items)} syllabus-derived item(s) across {len(manifest)} tracked syllabus folder(s).")
+
+    tracked_by_course: dict[int, tuple[str, list[str]]] = {}
+    for folder_name, paths in manifest.items():
+        course_id = syllabus_parser.match_course_key(folder_name, courses)
+        if course_id is not None:
+            tracked_by_course[course_id] = (folder_name, [p.name for p in paths])
+
+    digest = build_digest(raw_assignments, lookahead_days=lookahead_days, syllabus_items=syllabus_items)
 
     # Dashboard — always written, even on a quiet day.
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -77,7 +92,11 @@ def main() -> int:
     (output_dir / "index.html").write_text(html, encoding="utf-8")
     print(f"Wrote dashboard to {output_dir / 'index.html'}")
 
-    title, body = format_notification_text(digest)
+    syllabuses_html = render_syllabuses_page(courses, tracked_by_course, repo_url=repo_url, branch=repo_branch)
+    (output_dir / "syllabuses.html").write_text(syllabuses_html, encoding="utf-8")
+    print(f"Wrote syllabuses page to {output_dir / 'syllabuses.html'}")
+
+    title, body = format_notification_text(digest, dashboard_url=pages_url)
     print(f"--- {title} ---\n{body}")
 
     if not skip_notify:

@@ -94,18 +94,32 @@ def test_quiz_kind_is_detected():
     assert digest.due_today[0].kind == "quiz"
 
 
-def test_notification_text_mentions_overdue_first():
+def test_notification_text_is_a_brief_summary_with_link():
     raw = [
         _assignment("Late HW", "2026-08-24T23:59:00Z"),
         _assignment("Today's Quiz", "2026-08-25T23:59:00Z", submission_types=["online_quiz"]),
     ]
     digest = build_digest(raw, now=NOW)
-    title, body = format_notification_text(digest)
+    title, body = format_notification_text(digest, dashboard_url="https://example.github.io/repo/")
     assert "overdue" in title.lower()
-    assert body.index("OVERDUE") < body.index("Due today")
+    assert "1 overdue" in body
+    assert "1 due today" in body
+    # itemized bullets are gone — this is a summary, not a list
+    assert "Late HW" not in body
+    assert "Today's Quiz" not in body
+    assert body.strip().endswith("https://example.github.io/repo/")
+
+
+def test_notification_text_flags_conflicts():
+    raw = [_assignment("Essay 2", "2026-08-25T23:59:00Z")]
+    digest = build_digest(raw, now=NOW)
+    digest.due_today[0].conflict = True
+    _, body = format_notification_text(digest)
+    assert "1 conflicting due date" in body
 
 
 def test_empty_digest_notification_is_friendly():
     digest = build_digest([], now=NOW)
-    title, body = format_notification_text(digest)
+    title, body = format_notification_text(digest, dashboard_url="https://example.github.io/repo/")
     assert "Nothing" in body
+    assert body.strip().endswith("https://example.github.io/repo/")
