@@ -68,7 +68,7 @@ def main() -> int:
 
     client = CanvasClient(domain=domain, token=token)
     try:
-        courses = client.get_active_courses()
+        courses = client.get_favorite_courses()
         raw_assignments = client.get_all_assignments(exclude_course_ids=exclude_ids)
     except CanvasError as e:
         print(f"Canvas API error: {e}", file=sys.stderr)

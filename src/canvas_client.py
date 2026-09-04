@@ -50,12 +50,11 @@ class CanvasClient:
             next_params = None  # the next_url already carries its own query string
         return results
 
-    def get_active_courses(self) -> list[dict]:
-        """Courses the user is currently, actively enrolled in (as a student)."""
+    def get_favorite_courses(self) -> list[dict]:
+        """Courses the user has starred/favorited in Canvas."""
         return self._get_paginated(
-            f"{self.base_url}/courses",
+            f"{self.base_url}/users/self/favorites/courses",
             params={
-                "enrollment_state": "active",
                 "per_page": 100,
                 "include[]": "term",
             },
@@ -83,12 +82,12 @@ class CanvasClient:
 
     def get_all_assignments(self, exclude_course_ids: set[int] | None = None) -> list[dict]:
         """
-        Every assignment across every active course, each annotated with
+        Get all assignments across every favorite course, each annotated with
         its parent course's id and name so downstream code doesn't need
         to look courses back up.
         """
         exclude_course_ids = exclude_course_ids or set()
-        courses = self.get_active_courses()
+        courses = self.get_favorite_courses()
 
         all_assignments: list[dict] = []
         for course in courses:
