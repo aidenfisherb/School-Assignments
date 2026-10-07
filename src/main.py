@@ -16,8 +16,10 @@ import os
 import sys
 from pathlib import Path
 
+import requests
+
 from . import syllabus_extractor
-from .canvas_client import CanvasClient, CanvasError
+from .canvas_client import CanvasClient, CanvasError, completed_assignment_ids
 from .digest import build_digest, format_notification_text
 from .dashboard import render_dashboard, render_syllabuses_page
 from .notify import send_ntfy
@@ -76,6 +78,15 @@ def main() -> int:
         print(f"Canvas API error: {e}", file=sys.stderr)
         return 1
 
+    try:
+        completed_ids = completed_assignment_ids(client.get_planner_overrides())
+        print(f"{len(completed_ids)} assignment(s) marked done in Canvas's planner.")
+    except (CanvasError, requests.RequestException) as e:
+        # Losing "mark as done" for one run just shows a few extra items;
+        # not worth failing the whole digest over.
+        print(f"Couldn't read planner overrides, showing everything: {e}", file=sys.stderr)
+        completed_ids = set()
+
     for removed in syllabus_extractor.remove_orphaned_extractions(syllabus_dir):
         print(f"Removed {removed} (its syllabus file was deleted).")
 
@@ -100,7 +111,12 @@ def main() -> int:
         else:
             tracked_by_course[course_id] = (folder_name, folder_statuses)
 
-    digest = build_digest(raw_assignments, lookahead_days=lookahead_days, syllabus_items=syllabus_items)
+    digest = build_digest(
+        raw_assignments,
+        lookahead_days=lookahead_days,
+        syllabus_items=syllabus_items,
+        completed_ids=completed_ids,
+    )
 
     # Dashboard — always written, even on a quiet day.
     output_dir.mkdir(parents=True, exist_ok=True)

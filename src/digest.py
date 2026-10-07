@@ -142,12 +142,17 @@ def build_digest(
     overdue_lookback_days: int = 3,
     now: datetime | None = None,
     syllabus_items: list[DigestItem] | None = None,
+    completed_ids: set[int] | None = None,
 ) -> Digest:
+    """`completed_ids` are assignment ids marked done in Canvas's planner —
+    work with nothing to submit (e.g. done in class) that would otherwise
+    sit in Overdue."""
     canvas_items: list[DigestItem] = []
     handled: list[tuple[str, str]] = []
+    completed_ids = completed_ids or set()
 
     for raw in raw_assignments:
-        if _is_already_handled(raw):
+        if _is_already_handled(raw) or raw.get("id") in completed_ids:
             # Track (course, title) for already-submitted/graded work so a
             # syllabus-derived duplicate of it can be suppressed below too —
             # otherwise something you've already turned in on Canvas could

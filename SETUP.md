@@ -34,7 +34,7 @@ add secrets, enable Pages. About 10 minutes total.
 5. Copy the generated token immediately — Canvas only shows it once.
 
 You also need your Canvas domain — the part of the URL before
-`/courses`, e.g. `samford.instructure.com`.
+`/courses`, e.g. `yourschool.instructure.com`.
 
 ## 3. Pick an ntfy topic and install the app
 
@@ -43,7 +43,7 @@ You also need your Canvas domain — the part of the URL before
    (it's also just a website, ntfy.sh, if you'd rather not install anything).
 2. Pick a topic name that's long and hard to guess — anyone who knows
    the exact name can read what's published to it, since there's no
-   account/auth involved. Something like `aiden-canvas-8f2k1x` is fine.
+   account/auth involved. Something like `canvas-digest-8f2k1x7q` (with your own random characters) is fine.
 3. In the app, tap **+** and subscribe to that exact topic name.
 4. That's it — no account, no signup.
 
@@ -55,7 +55,7 @@ In your repo: **Settings → Secrets and variables → Actions**.
 
 | Name | Value |
 |---|---|
-| `CANVAS_DOMAIN` | e.g. `samford.instructure.com` |
+| `CANVAS_DOMAIN` | e.g. `yourschool.instructure.com` |
 | `CANVAS_TOKEN` | the token from step 2 |
 | `NTFY_TOPIC` | the topic name from step 3 |
 | `GEMINI_API_KEY` | *optional* — enables syllabus extraction; see "Adding a syllabus" below |
@@ -99,11 +99,21 @@ Time starts, and back when Daylight Time resumes.
 
 ## What's public
 
-The repo and the deployed dashboard are public: course names and
-assignment titles are visible to anyone with the link. Your Canvas
-token, domain, and ntfy topic are **not** — they exist only as
-encrypted GitHub Actions secrets, injected as environment variables at
-run time, never written to any file in the repo or the deployed site.
+On a public repo, three things are visible to anyone:
+
+- **The dashboard:** course names, assignment titles, due dates, and
+  points. Items aren't linked back to Canvas, so your school's Canvas
+  address never appears on the page.
+- **The repo itself**, including any syllabus files you upload and
+  their `.extracted.json` files. Syllabi often contain instructor
+  contact details, so only upload ones you're comfortable publishing.
+- **Actions run logs**, which print counts and syllabus file names.
+
+Your Canvas token, Canvas domain, ntfy topic, and Gemini key are
+**not** public. They exist only as encrypted GitHub Actions secrets,
+injected as environment variables at run time and never written to any
+file in the repo or the deployed site. GitHub also replaces their values
+with `***` anywhere they would appear in a log.
 
 ## Adding or removing a class later
 

@@ -23,13 +23,15 @@ def _assignment(
     submission_state=None,
     submission_types=None,
     points=100,
+    assignment_id=1,
 ):
     return {
+        "id": assignment_id,
         "name": name,
         "due_at": due_at,
         "_course_name": course_name,
         "_course_id": course_id,
-        "html_url": f"https://canvas.example.com/courses/{course_id}/assignments/1",
+        "html_url": f"https://canvas.example.com/courses/{course_id}/assignments/{assignment_id}",
         "points_possible": points,
         "submission_types": submission_types or ["online_upload"],
         "submission": {"workflow_state": submission_state} if submission_state else None,
@@ -123,3 +125,31 @@ def test_empty_digest_notification_is_friendly():
     title, body = format_notification_text(digest, dashboard_url="https://example.github.io/repo/")
     assert "Nothing" in body
     assert body.strip().endswith("https://example.github.io/repo/")
+
+
+def test_marked_done_in_canvas_is_excluded():
+    raw = [
+        _assignment("In-class activity", "2026-08-24T23:59:00Z", assignment_id=7),
+        _assignment("Essay 2", "2026-08-24T23:59:00Z", assignment_id=8),
+    ]
+    digest = build_digest(raw, now=NOW, completed_ids={7})
+    assert [i.title for i in digest.overdue] == ["Essay 2"]
+
+
+def test_marked_done_also_suppresses_its_syllabus_copy():
+    from src.digest import DigestItem
+
+    raw = [_assignment("Lab 3", "2026-08-24T23:59:00Z", course_name="GEOG216", assignment_id=7)]
+    syllabus = [
+        DigestItem(
+            course_name="GEOG216",
+            title="Lab 3",
+            due_at=datetime(2026, 8, 24, 23, 59, tzinfo=TZ),
+            html_url="",
+            points_possible=None,
+            kind="assignment",
+            source="Syllabus",
+        )
+    ]
+    digest = build_digest(raw, now=NOW, syllabus_items=syllabus, completed_ids={7})
+    assert digest.is_empty

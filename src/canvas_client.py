@@ -1,9 +1,10 @@
 """
 Thin client for the Canvas LMS REST API.
 
-Only reads the two endpoints this project needs:
-  - GET /api/v1/courses                       (active enrollments)
+Only reads the endpoints this project needs:
+  - GET /api/v1/users/self/favorites/courses  (favorited courses)
   - GET /api/v1/courses/:id/assignments        (with submission status)
+  - GET /api/v1/planner/overrides              ("mark as done" checks)
 
 Handles Canvas's Link-header pagination generically so callers never
 have to think about page size or cursors.
@@ -16,6 +17,25 @@ import requests
 
 class CanvasError(RuntimeError):
     """Raised when the Canvas API returns something we can't use."""
+
+
+def completed_assignment_ids(overrides: list[dict]) -> set[int]:
+    """Assignment ids the student has marked done in Canvas's planner.
+
+    Quizzes and graded discussions are overridden as their own plannable
+    type (with their own plannable_id), but the override also carries the
+    underlying assignment_id, which is what the digest keys on.
+    """
+    ids: set[int] = set()
+    for o in overrides:
+        if not o.get("marked_complete") or o.get("deleted_at") or o.get("workflow_state") == "deleted":
+            continue
+        assignment_id = o.get("assignment_id")
+        if assignment_id is None and o.get("plannable_type") == "assignment":
+            assignment_id = o.get("plannable_id")
+        if assignment_id is not None:
+            ids.add(assignment_id)
+    return ids
 
 
 class CanvasClient:
@@ -79,6 +99,11 @@ class CanvasClient:
                 "include[]": "submission",
             },
         )
+
+    def get_planner_overrides(self) -> list[dict]:
+        """The user's planner overrides — including "mark as done" checks
+        made in Canvas's To Do list or the dashboard's List View."""
+        return self._get_paginated(f"{self.base_url}/planner/overrides", params={"per_page": 100})
 
     def get_all_assignments(self, courses: list[dict]) -> list[dict]:
         """

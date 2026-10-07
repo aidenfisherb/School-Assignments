@@ -71,7 +71,6 @@ _BASE_CSS = """
   .item:first-child { border-top: none; }
   .item-main { display: flex; flex-direction: column; gap: 0.1rem; }
   .item-title { font-weight: 600; color: var(--text); text-decoration: none; }
-  a .item-title { color: var(--accent); }
   .item-course { color: var(--text-muted); font-size: 0.825rem; }
   .item-meta { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.35rem; font-size: 0.8rem; flex-wrap: wrap; }
   .item-due { color: var(--text-muted); }
@@ -143,13 +142,12 @@ def _item_row(item: DigestItem, *, show_date: bool) -> str:
     else:
         when = _fmt_time(item.due_at)
     points = f"{item.points_possible:g} pts" if item.points_possible not in (None, 0) else ""
-    link_open, link_close = (f'<a href="{escape(item.html_url)}">', "</a>") if item.html_url else ("", "")
     src_class = "tag-src-canvas" if item.source == "Canvas" else "tag-src-syllabus"
     conflict_chip = '<span class="tag tag-conflict">Conflicting</span>' if item.conflict else ""
     return f"""
     <li class="item">
       <div class="item-main">
-        {link_open}<span class="item-title">{escape(item.title)}</span>{link_close}
+        <span class="item-title">{escape(item.title)}</span>
         <span class="item-course">{escape(item.course_name)}</span>
       </div>
       <div class="item-meta">
@@ -162,7 +160,9 @@ def _item_row(item: DigestItem, *, show_date: bool) -> str:
     </li>"""
 
 
-def _section(title: str, items: list[DigestItem], *, empty_text: str, show_date: bool, tone: str = "") -> str:
+def _section(
+    title: str, items: list[DigestItem], *, empty_text: str, show_date: bool, tone: str = "", hint: str = ""
+) -> str:
     if not items:
         return f"""
     <section class="section">
@@ -174,7 +174,7 @@ def _section(title: str, items: list[DigestItem], *, empty_text: str, show_date:
     <section class="section{' section-' + tone if tone else ''}">
       <h2>{escape(title)} <span class="count">{len(items)}</span></h2>
       <ul class="item-list">{rows}
-      </ul>
+      </ul>{f'<p class="hint">{escape(hint)}</p>' if hint else ""}
     </section>"""
 
 
@@ -182,7 +182,13 @@ def render_dashboard(digest: Digest, repo_url: str = "") -> str:
     generated = _fmt_full(digest.generated_at)
 
     overdue_html = _section(
-        "Overdue", digest.overdue, empty_text="Nothing overdue.", show_date=True, tone="overdue"
+        "Overdue",
+        digest.overdue,
+        empty_text="Nothing overdue.",
+        show_date=True,
+        tone="overdue",
+        hint="Nothing to turn in (e.g. done in class)? Mark it done in Canvas's To Do list "
+        "and it drops off here on the next run.",
     )
     today_html = _section(
         "Due Today", digest.due_today, empty_text="Nothing due today.", show_date=False, tone="today"

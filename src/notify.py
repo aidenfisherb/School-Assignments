@@ -1,7 +1,7 @@
 """
 Pushes the digest to a phone via ntfy.sh — free, no account, no API key.
 Anyone who knows the exact topic name can read it, so treat the topic
-name itself like a lightweight secret (long and random, not "aiden").
+name itself like a lightweight secret (long and random, not your name).
 """
 
 from __future__ import annotations
