@@ -10,6 +10,7 @@ from datetime import datetime
 from html import escape
 
 from .digest import Digest, DigestItem, _fmt_date_short, _fmt_time
+from .syllabus_extractor import EXTRACTED_SUFFIX, FileStatus
 
 _KIND_LABEL = {"quiz": "Quiz/Test", "discussion": "Discussion", "assignment": "Assignment"}
 
@@ -64,6 +65,7 @@ _BASE_CSS = """
   }
   .empty { color: var(--text-muted); font-size: 0.9rem; margin: 0 0 0.75rem; }
   .hint { color: var(--text-muted); font-size: 0.8rem; margin: 0.3rem 0 0.75rem; }
+  .hint-problem { color: var(--conflict); }
   .item-list { list-style: none; margin: 0; padding: 0; }
   .item { padding: 0.75rem 0; border-top: 1px solid var(--border); }
   .item:first-child { border-top: none; }
@@ -134,7 +136,12 @@ def _page_shell(page_title: str, active_nav: str, body_html: str, repo_url: str)
 
 
 def _item_row(item: DigestItem, *, show_date: bool) -> str:
-    when = f"{_fmt_date_short(item.due_at)}, {_fmt_time(item.due_at)}" if show_date else _fmt_time(item.due_at)
+    if not item.has_time:
+        when = _fmt_date_short(item.due_at) if show_date else "no time listed"
+    elif show_date:
+        when = f"{_fmt_date_short(item.due_at)}, {_fmt_time(item.due_at)}"
+    else:
+        when = _fmt_time(item.due_at)
     points = f"{item.points_possible:g} pts" if item.points_possible not in (None, 0) else ""
     link_open, link_close = (f'<a href="{escape(item.html_url)}">', "</a>") if item.html_url else ("", "")
     src_class = "tag-src-canvas" if item.source == "Canvas" else "tag-src-syllabus"
@@ -196,19 +203,36 @@ def render_dashboard(digest: Digest, repo_url: str = "") -> str:
     return _page_shell("Canvas Digest", "dashboard", body, repo_url)
 
 
+def _status_text(status: FileStatus) -> tuple[str, bool]:
+    """(text, is_problem) describing one syllabus file's extraction state."""
+    if status.state in ("cached", "extracted"):
+        n = status.item_count
+        return f"{n} dated item{'s' if n != 1 else ''} found", False
+    if status.state == "pending":
+        return "not extracted yet - GEMINI_API_KEY is not set", True
+    if status.state == "unmatched":
+        return "folder name doesn't match any course", True
+    return f"extraction failed: {status.detail}", True
+
+
 def render_syllabuses_page(
     courses: list[dict],
-    tracked_by_course: dict[int, tuple[str, list[str]]],
+    tracked_by_course: dict[int, tuple[str, list[FileStatus]]],
+    unmatched: list[FileStatus] | None = None,
     *,
     repo_url: str = "",
     branch: str = "dev",
 ) -> str:
     """
-    Lists which courses have a tracked syllabus and which don't. All
-    add/view/delete actions link out to GitHub's own file UI — this page
-    only reads the manifest `main.py` already built, no filesystem access
-    and no write capability of its own.
+    Lists which courses have a tracked syllabus, how extraction went for
+    each file, and which courses have none. All add/view/edit/delete
+    actions link out to GitHub's own file UI — this page only reads what
+    `main.py` already built, with no write capability of its own.
     """
+
+    def file_url(action: str, folder: str, fname: str) -> str:
+        return f"{repo_url}/{action}/{branch}/syllabi/{folder}/{fname}" if repo_url else "#"
+
     blocks: list[str] = []
     for course in courses:
         course_id = course.get("id")
@@ -216,17 +240,26 @@ def render_syllabuses_page(
         tracked = tracked_by_course.get(course_id)
 
         if tracked:
-            folder, filenames = tracked
+            folder, statuses = tracked
             rows = []
-            for fname in filenames:
-                view_url = f"{repo_url}/blob/{branch}/syllabi/{folder}/{fname}" if repo_url else "#"
-                delete_url = f"{repo_url}/delete/{branch}/syllabi/{folder}/{fname}" if repo_url else "#"
+            for status in statuses:
+                fname = status.filename
+                text, is_problem = _status_text(status)
+                review_link = ""
+                if status.state in ("cached", "extracted"):
+                    json_name = fname + EXTRACTED_SUFFIX
+                    review_link = (
+                        f'<span class="sep">&middot;</span>'
+                        f'<a href="{escape(file_url("edit", folder, json_name))}">review dates</a>'
+                    )
                 rows.append(
                     f'<div class="file-row">'
-                    f'<a href="{escape(view_url)}">{escape(fname)}</a>'
+                    f'<a href="{escape(file_url("blob", folder, fname))}">{escape(fname)}</a>'
+                    f"{review_link}"
                     f'<span class="sep">&middot;</span>'
-                    f'<a href="{escape(delete_url)}">remove</a>'
+                    f'<a href="{escape(file_url("delete", folder, fname))}">remove</a>'
                     f"</div>"
+                    f'<p class="hint{" hint-problem" if is_problem else ""}">{escape(text)}</p>'
                 )
             upload_url = f"{repo_url}/upload/{branch}/syllabi/{folder}" if repo_url else "#"
             rows.append(f'<div class="file-row"><a href="{escape(upload_url)}">+ add another file</a></div>')
@@ -252,13 +285,27 @@ def render_syllabuses_page(
 
     courses_html = "\n".join(blocks) if blocks else '<p class="empty">No active courses found.</p>'
 
+    unmatched_html = ""
+    if unmatched:
+        rows = "\n".join(
+            f'<div class="file-row"><a href="{escape(file_url("blob", s.folder, s.filename))}">'
+            f"syllabi/{escape(s.folder)}/{escape(s.filename)}</a></div>"
+            for s in unmatched
+        )
+        unmatched_html = f"""
+    <section class="section">
+      <h2>Not matched to a course</h2>
+      <p class="hint hint-problem">These folder names don't match any favorited course's code or name, so they're ignored.</p>
+      {rows}
+    </section>"""
+
     body = f"""
     <header>
       <h1>Syllabi</h1>
-      <div class="updated">Assignments extracted from these are merged into the dashboard automatically.</div>
+      <div class="updated">Dated items are pulled from each file once and merged into the dashboard. Use "review dates" to correct anything misread.</div>
     </header>
     <section class="section">
       {courses_html}
-    </section>"""
+    </section>{unmatched_html}"""
 
     return _page_shell("Syllabi — Canvas Digest", "syllabuses", body, repo_url)

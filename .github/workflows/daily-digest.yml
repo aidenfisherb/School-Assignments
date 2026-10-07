@@ -16,7 +16,7 @@ on:
       - "syllabi/**" # rebuild right away when a syllabus is added/removed via GitHub's UI
 
 permissions:
-  contents: read
+  contents: write # commits newly extracted syllabus data back to the repo
   pages: write
   id-token: write
 
@@ -45,11 +45,30 @@ jobs:
           CANVAS_DOMAIN: ${{ secrets.CANVAS_DOMAIN }}
           CANVAS_TOKEN: ${{ secrets.CANVAS_TOKEN }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
           EXCLUDE_COURSE_IDS: ${{ vars.EXCLUDE_COURSE_IDS }}
           LOOKAHEAD_DAYS: ${{ vars.LOOKAHEAD_DAYS }}
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}
           REPO_BRANCH: ${{ github.ref_name }}
         run: python -m src.main
+
+      # Saves new syllabus extractions (and removes ones whose syllabus was
+      # deleted) so later runs reuse them instead of calling Gemini again.
+      # Pushes made with the workflow's own token never trigger another
+      # workflow run, so this can't loop back into the syllabi/** trigger.
+      - name: Save extracted syllabus data
+        run: |
+          git add -A -- syllabi 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No syllabus data changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Save extracted syllabus data"
+          git pull --rebase
+          git push
 
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -40,20 +40,29 @@ noise — just what a student actually needs to see before class.
 Canvas is sometimes incomplete (a professor forgets to set a due date)
 or just wrong. Upload a syllabus PDF/docx per course to
 `syllabi/<COURSE_KEY>/yourfile.pdf` (via GitHub's own web UI — no git
-needed) and the workflow extracts assignment/due-date pairs from it
-automatically. `COURSE_KEY` just needs to match part of the course's
-Canvas code or name (e.g. `syllabi/COSC240/...` for a course coded
-`COSC240.01`) — matching happens fresh against your live enrollments
-each run, so it survives semester rollover with no changes needed.
+needed) and the workflow pulls the graded, dated items out of it.
+`COURSE_KEY` just needs to match part of the course's Canvas code or
+name (e.g. `syllabi/COSC240/...` for a course coded `COSC240.01`) —
+matching happens fresh against your favorited courses each run, so it
+survives semester rollover with no changes needed.
 
-Automatic extraction from prose is inherently a heuristic, not a
-guarantee — expect it to occasionally miss something or misread a
-date. That's exactly what the Conflicting tag is for: it surfaces a
-disagreement between Canvas and a syllabus instead of hiding it. The
-**Syllabi** page (reachable from the dashboard's navbar) shows which
-courses have a tracked syllabus, with links to view or remove files
-and to add new ones — all through GitHub's own file UI, so there's no
-custom upload form or backend to maintain.
+Extraction uses Google's Gemini API on its **free tier** (optional —
+without a `GEMINI_API_KEY` the syllabus feature simply stays off).
+PDFs are sent to the model as documents rather than scraped text, so
+schedule tables keep their structure. Each file is read **once**: the
+result is committed next to it as `<file>.extracted.json`, and every
+later run reuses that file instead of calling the API again. That JSON
+is also how you fix a misread date — edit it on GitHub and the
+correction sticks until the syllabus itself is replaced.
+
+A model reading a syllabus can still get something wrong, which is
+what the Conflicting tag is for: it surfaces a disagreement between
+Canvas and a syllabus instead of hiding it. The **Syllabi** page
+(reachable from the dashboard's navbar) shows each course's files, how
+many dated items were found, any extraction problems, and links to
+review the extracted dates, remove a file, or add one — all through
+GitHub's own file UI, so there's no custom upload form or backend to
+maintain.
 
 ## Why it's built this way
 
@@ -78,7 +87,7 @@ custom upload form or backend to maintain.
 src/
   canvas_client.py    Canvas REST API wrapper (courses, assignments, pagination)
   digest.py           Filtering + bucketing (overdue / due today / coming up)
-  syllabus_parser.py  Extracts assignment/due-date pairs from uploaded syllabus files
+  syllabus_extractor.py  Extracts dated items from syllabus files via Gemini, cached as JSON
   merge.py            Reconciles Canvas items with syllabus items (dedup / conflict tagging)
   dashboard.py        Renders the digest into static HTML pages (dashboard + syllabi)
   notify.py           Sends the push notification via ntfy.sh
@@ -86,18 +95,19 @@ src/
 tests/
   test_digest.py            Unit tests for filtering/bucketing/notification text
   test_merge.py             Unit tests for the dedup/conflict logic
-  test_syllabus_parser.py   Unit tests for syllabus text/date extraction
+  test_syllabus_extractor.py  Unit tests for course matching, caching, and conversion (model faked)
 syllabi/
   <COURSE_KEY>/       One folder per course; drop a .pdf or .docx syllabus in here
+                      (the workflow adds <file>.extracted.json beside it)
 .github/workflows/
   daily-digest.yml   Cron schedule + GitHub Pages deploy; also rebuilds on syllabus changes
 ```
 
 ## Tech
 
-Python 3.12, `requests`, `pypdf`, `python-docx`, `python-dateutil`,
-GitHub Actions (schedule + Pages deploy), ntfy.sh for push delivery. No
-frameworks, no external services beyond Canvas and ntfy.
+Python 3.12, `requests`, `google-genai`, `python-docx`, GitHub Actions
+(schedule + Pages deploy), ntfy.sh for push delivery, and Gemini's free
+tier for syllabus extraction. No frameworks, nothing paid.
 
 ## Setup
 

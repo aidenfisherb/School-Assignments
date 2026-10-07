@@ -30,6 +30,7 @@ class DigestItem:
     kind: str  # "assignment" | "quiz" | "discussion"
     source: str = "Canvas"  # "Canvas" | "Syllabus"
     conflict: bool = False  # True when Canvas and a syllabus disagree on this assignment
+    has_time: bool = True  # False for syllabus items that list a date but no time
 
 
 def _parse_due_at(raw: str | None) -> datetime | None:

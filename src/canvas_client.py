@@ -80,19 +80,16 @@ class CanvasClient:
             },
         )
 
-    def get_all_assignments(self, exclude_course_ids: set[int] | None = None) -> list[dict]:
+    def get_all_assignments(self, courses: list[dict]) -> list[dict]:
         """
-        Get all assignments across every favorite course, each annotated with
+        Get all assignments across the given courses, each annotated with
         its parent course's id and name so downstream code doesn't need
         to look courses back up.
         """
-        exclude_course_ids = exclude_course_ids or set()
-        courses = self.get_favorite_courses()
-
         all_assignments: list[dict] = []
         for course in courses:
             course_id = course.get("id")
-            if course_id is None or course_id in exclude_course_ids:
+            if course_id is None:
                 continue
             course_name = course.get("name") or course.get("course_code") or f"Course {course_id}"
 

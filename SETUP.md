@@ -58,6 +58,7 @@ In your repo: **Settings → Secrets and variables → Actions**.
 | `CANVAS_DOMAIN` | e.g. `samford.instructure.com` |
 | `CANVAS_TOKEN` | the token from step 2 |
 | `NTFY_TOPIC` | the topic name from step 3 |
+| `GEMINI_API_KEY` | *optional* — enables syllabus extraction; see "Adding a syllabus" below |
 
 **Variables** (same page, *Variables* tab — optional, both have defaults):
 
@@ -65,6 +66,7 @@ In your repo: **Settings → Secrets and variables → Actions**.
 |---|---|---|
 | `LOOKAHEAD_DAYS` | how many days ahead to show in "Coming Up" | `7` |
 | `EXCLUDE_COURSE_IDS` | comma-separated Canvas course IDs to hide (find a course's ID in its Canvas URL, e.g. `.../courses/12345`) | none |
+| `GEMINI_MODEL` | Gemini model used for syllabus extraction | `gemini-3.8-flash` |
 
 ## 5. Enable GitHub Pages
 
@@ -112,6 +114,18 @@ repo variable (comma-separated for more than one).
 
 ## Adding a syllabus
 
+**One-time: get a free Gemini API key.** Go to
+[aistudio.google.com](https://aistudio.google.com), sign in with a
+Google account, and click **Get API key → Create API key**. No billing
+or card is needed — leave the project on the free tier. Add the key as
+the `GEMINI_API_KEY` repo secret (step 4). Each syllabus file costs one
+API call, ever, so the free tier's daily limits are far more than this
+uses. Note that Google may use free-tier inputs to improve its models;
+the syllabi are already public in this repo, so nothing new is exposed.
+
+Without the key the rest of the project works normally; uploaded
+syllabi just show as "not extracted yet" on the Syllabi page.
+
 1. On GitHub, use **Add file → Upload files** to upload a `.pdf` or
    `.docx` syllabus to a path like `syllabi/COSC240/syllabus.pdf` —
    `COSC240` should match part of that course's Canvas course code or
@@ -122,13 +136,17 @@ repo variable (comma-separated for more than one).
 2. Commit directly to your default branch. That push triggers an
    immediate rebuild (in addition to the daily schedule), so the
    dashboard picks it up within a minute or two rather than waiting
-   for the next morning.
-3. To remove one, use the **remove** link next to the file on the
-   Syllabi page (or delete it directly on GitHub) — same push trigger
-   applies.
+   for the next morning. The run sends the file to Gemini once and
+   commits the result as `<file>.extracted.json` next to it.
+3. **Check the result.** On the Syllabi page, click **review dates**
+   next to the file. That opens the extracted JSON in GitHub's editor:
+   fix any wrong `due_date` (`YYYY-MM-DD`) or `due_time` (`HH:MM`, or
+   `null`), delete items that aren't real deliverables, and commit.
+   Your edits are kept until the syllabus file itself is replaced.
+4. To remove a syllabus, use the **remove** link next to the file on
+   the Syllabi page (or delete it on GitHub). The next run deletes its
+   `.extracted.json` too.
 
-Extraction is a first pass, not a guarantee — accuracy depends
-entirely on how consistently a given syllabus formats its dates.
-Anything the parser gets wrong relative to Canvas shows up with a
+Anything that still disagrees with Canvas shows up with a
 **Conflicting** tag on the dashboard instead of silently overriding
 Canvas, so it's always visible when the two disagree.
