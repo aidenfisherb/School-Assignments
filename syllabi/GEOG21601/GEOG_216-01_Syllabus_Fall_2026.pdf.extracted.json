@@ -1,0 +1,61 @@
+{
+  "source_sha256": "b6a1636e811760f23b8261e91b181396a526691b023091e06085aae3a0ecb6f9",
+  "model": "gemini-3.8-flash",
+  "extracted_at": "2026-10-09T18:39:00-05:00",
+  "items": [
+    {
+      "title": "Esri Course 1",
+      "due_date": "2026-09-04",
+      "due_time": "23:59",
+      "kind": "assignment"
+    },
+    {
+      "title": "Project 1",
+      "due_date": "2026-10-02",
+      "due_time": "23:59",
+      "kind": "assignment"
+    },
+    {
+      "title": "Esri Course 2",
+      "due_date": "2026-10-16",
+      "due_time": "23:59",
+      "kind": "assignment"
+    },
+    {
+      "title": "Project 2",
+      "due_date": "2026-11-06",
+      "due_time": "23:59",
+      "kind": "assignment"
+    },
+    {
+      "title": "Final Project Proposal",
+      "due_date": "2026-11-13",
+      "due_time": "23:59",
+      "kind": "assignment"
+    },
+    {
+      "title": "Esri Course 3",
+      "due_date": "2026-11-20",
+      "due_time": "23:59",
+      "kind": "assignment"
+    },
+    {
+      "title": "Final Project Presentations",
+      "due_date": "2026-12-07",
+      "due_time": "08:00",
+      "kind": "assignment"
+    },
+    {
+      "title": "Final Project Report",
+      "due_date": "2026-12-07",
+      "due_time": "23:59",
+      "kind": "assignment"
+    },
+    {
+      "title": "Portfolio",
+      "due_date": "2026-12-07",
+      "due_time": "23:59",
+      "kind": "assignment"
+    }
+  ]
+}
