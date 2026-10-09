@@ -7,6 +7,19 @@ dashboard.
 
 **Live example:** `https://<your-username>.github.io/<repo-name>/` (once deployed — see SETUP.md)
 
+## Status: in progress
+
+The digest, dashboard, push notifications, syllabus extraction, and
+"mark as done" support all work and run daily. Still to come:
+
+- **Assignment planning** — the next big feature: turning what's due
+  into a suggested plan for when to work on each assignment, instead
+  of only listing deadlines.
+- Sending the push only after the dashboard has deployed, and
+  reporting Canvas courses that fail to load instead of skipping them.
+- Making the repo easy to reuse: a GitHub template, a configurable
+  timezone, and a "set up your own" guide.
+
 ## What it does
 
 Every weekday morning (scheduled for 6:17 AM Central, though GitHub
