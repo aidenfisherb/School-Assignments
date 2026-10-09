@@ -90,12 +90,17 @@ typo'd `CANVAS_DOMAIN` (no `https://`, just the bare domain) or a
 
 ## Adjusting the schedule
 
-The cron in `.github/workflows/daily-digest.yml` is `30 11 * * 1-5`
-(11:30 UTC = 6:30 AM Central during Daylight Time). GitHub Actions cron
-doesn't account for Daylight Saving Time, so the workflow will drift to
-5:30 AM local once Standard Time starts in the fall. Comments in that
-file explain the one-line fix — flip `30 11` to `30 12` when Standard
-Time starts, and back when Daylight Time resumes.
+The cron in `.github/workflows/daily-digest.yml` is `17 11 * * 1-5`:
+11:17 UTC on weekdays, which is 6:17 AM Central in summer and 5:17 AM in
+winter (cron always runs on UTC and ignores Daylight Saving Time). To
+change it, edit that line; [crontab.guru](https://crontab.guru) helps
+with the syntax. Avoid minute `00` or `30` — those are GitHub's busiest
+times.
+
+Expect scheduled runs to start late. GitHub only promises to queue them,
+not to start them on time, and delays of several hours are common on
+the free tier. For an immediate update, use **Actions → Daily Canvas
+Digest → Run workflow**.
 
 ## What's public
 

@@ -2,13 +2,11 @@ name: Daily Canvas Digest
 
 on:
   schedule:
-    # 11:30 UTC = 6:30 AM Central during Daylight Time (CDT, UTC-5).
-    # During Standard Time (CST, UTC-6, roughly Nov-Mar) this fires at
-    # 5:30 AM local instead. GitHub Actions cron doesn't know about DST,
-    # so if you want it locked to 6:30 AM year-round, flip this to
-    # "30 12 * * 1-5" when CST starts and back to "30 11 * * 1-5" when
-    # CDT resumes.
-    - cron: "30 11 * * 1-5" # Mon-Fri only
+    # 11:17 UTC = 6:17 AM Central during Daylight Time (5:17 AM in winter;
+    # cron is always UTC). An odd minute on purpose: GitHub delays
+    # scheduled runs most at busy times like :00 and :30, and even so a
+    # run can start hours late. Use "Run workflow" for an immediate run.
+    - cron: "17 11 * * 1-5" # Mon-Fri only
   workflow_dispatch: {} # lets you trigger a run manually from the Actions tab to test
   push:
     branches: [dev]

@@ -9,7 +9,8 @@ dashboard.
 
 ## What it does
 
-Every weekday at 6:30 AM Central, a GitHub Actions workflow:
+Every weekday morning (scheduled for 6:17 AM Central, though GitHub
+often starts scheduled runs late), a GitHub Actions workflow:
 
 1. Calls the Canvas REST API to list your currently active courses.
 2. Pulls every assignment (which in Canvas also covers graded quizzes,
