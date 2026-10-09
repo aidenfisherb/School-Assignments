@@ -36,8 +36,11 @@ logger = logging.getLogger(__name__)
 
 # Free-tier Gemini model; override with the GEMINI_MODEL repo variable.
 DEFAULT_MODEL = "gemini-3.8-flash"
-# Also free-tier; used only when the main model is overloaded.
-FALLBACK_MODEL = "gemini-2.5-flash"
+# Also free-tier; tried in order only when the main model is overloaded or
+# not offered to this key (Google retires older models for new accounts).
+FALLBACK_MODELS = ("gemini-3.7-flash", "gemini-3.5-flash")
+# Per request. A 13-page syllabus normally takes well under a minute.
+_REQUEST_TIMEOUT_MS = 90_000
 EXTRACTED_SUFFIX = ".extracted.json"
 _SOURCE_SUFFIXES = (".pdf", ".docx")
 
@@ -171,23 +174,25 @@ def describe_term(course: dict) -> str:
 
 
 def make_gemini_extractor(api_key: str, model: str = DEFAULT_MODEL) -> ExtractFn:
+    import httpx
     from google import genai
-    from google.genai import types
-
-    from google.genai import errors
+    from google.genai import errors, types
 
     # Free-tier requests are the first to get 503 "high demand" or 429
     # rate-limit responses, so back off and retry well past the SDK default.
+    # The SDK has no timeout by default, so an overloaded server that never
+    # answers would otherwise hang the run indefinitely.
     client = genai.Client(
         api_key=api_key,
         http_options=types.HttpOptions(
+            timeout=_REQUEST_TIMEOUT_MS,
             retry_options=types.HttpRetryOptions(
-                attempts=4, initial_delay=5, max_delay=60, http_status_codes=[429, 500, 503, 504]
-            )
+                attempts=3, initial_delay=5, max_delay=60, http_status_codes=[429, 500, 503, 504]
+            ),
         ),
     )
-    # If the chosen model stays overloaded, a second free model usually isn't.
-    models = [model] if model == FALLBACK_MODEL else [model, FALLBACK_MODEL]
+    # If the chosen model stays overloaded, another free model usually isn't.
+    models = [model] + [m for m in FALLBACK_MODELS if m != model]
 
     def extract(path: Path, course_name: str, term: str, today: date) -> tuple[list[ExtractedItem], str]:
         if path.suffix.lower() == ".pdf":
@@ -204,12 +209,18 @@ def make_gemini_extractor(api_key: str, model: str = DEFAULT_MODEL) -> ExtractFn
         )
 
         for i, current in enumerate(models):
+            logger.info("Sending %s to %s...", path.name, current)
             try:
                 response = client.models.generate_content(model=current, contents=[document, prompt], config=config)
-            except errors.APIError as e:
-                overloaded = e.code == 429 or (e.code or 0) >= 500
+            except (errors.APIError, httpx.TimeoutException) as e:
+                if isinstance(e, errors.APIError):
+                    reason = str(e.code)
+                    # 404: the model was retired or isn't offered to this key.
+                    overloaded = e.code in (404, 429) or (e.code or 0) >= 500
+                else:
+                    reason, overloaded = "timed out", True
                 if overloaded and i + 1 < len(models):
-                    logger.warning("%s unavailable (%s); trying %s", current, e.code, models[i + 1])
+                    logger.warning("%s unavailable (%s); trying %s", current, reason, models[i + 1])
                     continue
                 raise
             if not response.text:
@@ -325,16 +336,33 @@ def process_syllabi(
 if __name__ == "__main__":
     # Try extraction on one file without Canvas or the rest of the pipeline:
     #   python -m src.syllabus_extractor syllabi/COSC240/syllabus.pdf
+    # Or list the models this key can use:
+    #   python -m src.syllabus_extractor --list-models
     # Reads GEMINI_API_KEY (and optionally GEMINI_MODEL) from the environment.
     # Prints what was found; writes nothing.
     import os
     import sys
 
+    from .envfile import load_env_file
+
+    load_env_file()
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    for noisy in ("httpx", "google_genai"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
     if len(sys.argv) != 2:
-        sys.exit("usage: python -m src.syllabus_extractor <path-to-syllabus.pdf|.docx>")
+        sys.exit("usage: python -m src.syllabus_extractor <path-to-syllabus.pdf|.docx> | --list-models")
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
-        sys.exit("GEMINI_API_KEY is not set in this terminal.")
+        sys.exit("GEMINI_API_KEY is not set (in this terminal or in .env).")
+
+    if sys.argv[1] == "--list-models":
+        from google import genai
+
+        client = genai.Client(api_key=api_key)  # must outlive the paged listing
+        for m in client.models.list():
+            actions = ", ".join(m.supported_actions or [])
+            print(f"{m.name.removeprefix('models/'):45} {actions}")
+        sys.exit(0)
     source = Path(sys.argv[1])
     if not source.is_file():
         sys.exit(f"No such file: {source}")

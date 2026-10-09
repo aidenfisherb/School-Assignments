@@ -6,8 +6,8 @@ repo variables — see SETUP.md), fetches Canvas assignments, builds the
 digest, writes the dashboard HTML for GitHub Pages, and pushes a phone
 notification via ntfy.sh.
 
-Run locally for testing with:
-    CANVAS_DOMAIN=... CANVAS_TOKEN=... NTFY_TOPIC=... python -m src.main
+Run locally for testing by copying .env.example to .env, filling it in, and running:
+    python -m src.main
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ from . import syllabus_extractor
 from .canvas_client import CanvasClient, CanvasError, completed_assignment_ids
 from .digest import build_digest, format_notification_text
 from .dashboard import render_dashboard, render_syllabuses_page
+from .envfile import load_env_file
 from .notify import send_ntfy
 
 
@@ -52,6 +53,7 @@ def _parse_exclude_ids(raw: str | None) -> set[int]:
 
 
 def main() -> int:
+    load_env_file()
     domain = _env("CANVAS_DOMAIN")
     token = _env("CANVAS_TOKEN")
     ntfy_topic = _env("NTFY_TOPIC")

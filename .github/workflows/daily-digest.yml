@@ -27,6 +27,7 @@ concurrency:
 jobs:
   build-and-notify:
     runs-on: ubuntu-latest
+    timeout-minutes: 20 # backstop if an API call ever hangs
     steps:
       - uses: actions/checkout@v4
 
